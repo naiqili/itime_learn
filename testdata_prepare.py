@@ -3,7 +3,7 @@ import numpy as np
 import os
 import tensorflow as tf
 
-conf = Config()
+conf = Config('test')
 
 # Build user-item-feature data
 def build_uif(test_train, n_fold):
@@ -23,6 +23,9 @@ def build_uif(test_train, n_fold):
                     #print recAlgo, user, item, score
                 else:
                     score = float(score)
+                
+                if user > conf.user_size or item > conf.item_size:
+                    continue
                 uif[user, item, recInd] = score
     output_path = "%suif_%s_%d" % (conf.uifDir, test_train, n_fold)
     np.save(output_path, uif)
@@ -40,6 +43,8 @@ def build_iur(test_train, n_fold):
             user = int(user)
             item = int(item)
             rating = float(rating)
+            if user > conf.user_size or item > conf.item_size:
+                    continue
             iur[item, user] = rating
     np.save(output_path, iur)
 
@@ -76,6 +81,8 @@ def build_tfrecord(test_train, n_fold):
             user, item, _ = line.strip().split()
             user = int(user)
             item = int(item)
+            if user > conf.user_size or item > conf.item_size:
+                    continue
             if not user in data:
                 data[user] = [item]
             else:

@@ -22,13 +22,13 @@ def get_data(filename):
             'item_list': tf.VarLenFeature(tf.int64)
         })
     # now return the converted data
-    _l = tf.to_int32(tf.sparse_tensor_to_dense(features['len']))
-    _user = tf.to_int32(tf.sparse_tensor_to_dense(features['user']))
+    _l = tf.squeeze(tf.to_int32(tf.sparse_tensor_to_dense(features['len'])))
+    _user = tf.squeeze(tf.to_int32(tf.sparse_tensor_to_dense(features['user'])))
     _item_list = tf.to_int32(tf.sparse_tensor_to_dense(features['item_list']))
     return tf.train.limit_epochs([_l, _user, _item_list])
 
 if __name__=='__main__':
-    conf = Config()
+    conf = Config('test')
     l, user, item_list = get_data('%stest_0.record' % conf.tfrecordDir)
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
