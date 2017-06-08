@@ -102,3 +102,6 @@ ENV/
 
 /data
 /model
+/evaluation
+/prediction
+/log

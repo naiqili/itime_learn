@@ -7,8 +7,8 @@ conf = Config()
 
 # Build user-item-feature data
 def build_uif(test_train, n_fold):
-    uif = np.zeros((conf.user_size+1,
-                    conf.item_size+1,
+    uif = np.zeros((conf.user_size,
+                    conf.item_size,
                     len(conf.recAlgos)), dtype=np.float16)
     for (recInd, recAlgo) in enumerate(conf.recAlgos):
         input_path = "%s%s_FalseFilter%s_%d.csv" % \
@@ -27,10 +27,12 @@ def build_uif(test_train, n_fold):
     output_path = "%suif_%s_%d" % (conf.uifDir, test_train, n_fold)
     np.save(output_path, uif)
 
+train_data_size = {}
+valid_data_size = {}
 # Build item-user-rating data
 def build_iur(test_train, n_fold):
-    iur = np.zeros((conf.item_size+1,
-                    conf.user_size+1), dtype=np.float16)
+    iur = np.zeros((conf.item_size,
+                    conf.user_size), dtype=np.float16)
     input_path = "%s%s_%d.csv" % \
                  (conf.seed2048Path, test_train, n_fold)
     output_path = "%siur_%s_%d" % (conf.iurDir, test_train, n_fold)
@@ -42,6 +44,7 @@ def build_iur(test_train, n_fold):
             rating = float(rating)
             iur[item, user] = rating
     np.save(output_path, iur)
+    
 
 if not os.path.exists(conf.uifDir):
     os.makedirs(conf.uifDir)
@@ -59,6 +62,20 @@ for cv in range(conf.n_folds):
     print "building test iur data for %d-th fold..." % cv
     build_iur("test", cv)
 
+if not os.path.exists(conf.datasizeDir):
+    os.makedirs(conf.datasizeDir)
+print 'Saving data size info...'
+
+train_ds_path = '%strain_size.txt' % conf.datasizeDir
+with open(train_ds_path, 'w') as f:
+    for (cv, n) in train_data_size.items():
+        f.write("%d %d\n" % (cv, n))
+
+valid_ds_path = '%svalid_size.txt' % conf.datasizeDir
+with open(valid_ds_path, 'w') as f:
+    for (cv, n) in valid_data_size.items():
+        f.write("%d %d\n" % (cv, n))
+        
 # build TFRecords
 
 if not os.path.exists(conf.tfrecordDir):
@@ -92,7 +109,11 @@ def build_tfrecord(test_train, n_fold):
             )
         serialized = example.SerializeToString()
         writer.write(serialized)
-    writer.close()                    
+    writer.close()
+    if test_train == 'test':
+        valid_data_size[n_fold] = len(data)
+    else:
+        train_data_size[n_fold] = len(data)
 
 for cv in range(conf.n_folds):
     print "building training tfrecord for %d-th fold..." % cv
@@ -100,4 +121,18 @@ for cv in range(conf.n_folds):
     print "building test tfrecord for %d-th fold..." % cv
     build_tfrecord("test", cv)
 
+if not os.path.exists(conf.datasizeDir):
+    os.makedirs(conf.datasizeDir)
+print 'Saving data size info...'
+
+train_ds_path = '%strain_size.txt' % conf.datasizeDir
+with open(train_ds_path, 'w') as f:
+    for (cv, n) in train_data_size.items():
+        f.write("%d %d\n" % (cv, n))
+
+valid_ds_path = '%svalid_size.txt' % conf.datasizeDir
+with open(valid_ds_path, 'w') as f:
+    for (cv, n) in valid_data_size.items():
+        f.write("%d %d\n" % (cv, n))
+        
 print "finish"
