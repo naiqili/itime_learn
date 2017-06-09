@@ -82,7 +82,8 @@ class LTRModel():
                                                 [0, item_list_ts, selected_items_arr, score1, all_losses])
 
         self.all_losses = all_losses.stack() # vec of n
-        self.sum_loss = tf.reduce_sum(self.all_losses)
+        #self.sum_loss = tf.reduce_sum(self.all_losses)
+        self.sum_loss = tf.reduce_mean(self.all_losses)
         self.pred = selected_items_arr.stack()
         self.loss_summary = tf.summary.scalar('Sum_Loss', self.sum_loss)
         if self.conf.is_training:
