@@ -13,14 +13,15 @@ class Config:
 
         self.train_data_size = {}
         self.valid_data_size = {}
-        with open("%strain_size.txt" % self.datasizeDir) as f:
-            for line in f:
-                cv, n = line.strip().split()
-                self.train_data_size[int(cv)] = int(n)
-        with open("%svalid_size.txt" % self.datasizeDir) as f:
-            for line in f:
-                cv, n = line.strip().split()
-                self.valid_data_size[int(cv)] = int(n)
+        if os.path.exists(self.datasizeDir):
+            with open("%strain_size.txt" % self.datasizeDir) as f:
+                for line in f:
+                    cv, n = line.strip().split()
+                    self.train_data_size[int(cv)] = int(n)
+            with open("%svalid_size.txt" % self.datasizeDir) as f:
+                for line in f:
+                    cv, n = line.strip().split()
+                    self.valid_data_size[int(cv)] = int(n)
 
     def get_default_config(self):
         self.user_size = 6040
