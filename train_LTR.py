@@ -18,6 +18,7 @@ import pylab
 flags = tf.flags
 
 flags.DEFINE_string("config_name", "default", "Config to be used.")
+flags.DEFINE_string("model_name", "LTR", "Model name.")
 flags.DEFINE_boolean("load_model", False, "Whether load the best model.")
 flags.DEFINE_integer("cv", 0, "Which cross validation set to be used.")
 
@@ -27,6 +28,12 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level = logging.DEBUG,
                     format = "%(asctime)s: %(name)s: %(levelname)s: %(message)s")
 
+def get_dir(cv, z_size, cur_time):
+    time_str = cur_time.strftime('%b-%d-%y %H:%M:%S')
+    _dir = "%s%s_cv%d_z%d_%s/" % (Config(FLAGS.config_name).log_dir, FLAGS.model_name, cv, z_size, time_str)
+    if not os.path.exists(_dir):
+        os.makedirs(_dir)
+    return _dir
 
 def report_figure(valid_history, train_history, fig_path):
     train_x, train_y = zip(*train_history)
@@ -42,16 +49,14 @@ def report_figure(valid_history, train_history, fig_path):
     except:
         pass
 
-def train(cv):
-    time_str = datetime.datetime.now().strftime('%b-%d-%y %H:%M:%S')
-    txt_log_path = Config(FLAGS.config_name).log_dir + ('cv%d ' % cv) + time_str
-    if not os.path.exists(txt_log_path):
-        os.makedirs(txt_log_path)
-    logger.addHandler(logging.FileHandler(txt_log_path + '/log.txt'))
+def train(cv, z_size):
+    cur_time = datetime.datetime.now()
+    logger.addHandler(logging.FileHandler(get_dir(cv, z_size, cur_time) + 'log.txt'))
     
     logger.debug("Start training for the %d-th fold..." % cv)
     training_config = Config(FLAGS.config_name)
     training_config.is_training = True
+    training_config.z_size = z_size # overwrite
     training_config.uif_path = "%suif_train_%d.npy" % (training_config.train_uif_dir, cv)
     training_config.iur_path = "%siur_train_%d.npy" % (training_config.train_iur_dir, cv)
     training_config.record_path = "%strain_%d.record" % (training_config.train_record_dir, cv)
@@ -60,6 +65,7 @@ def train(cv):
 
     valid_config = Config(FLAGS.config_name)
     valid_config.is_training = False
+    valid_config.z_size = z_size # overwrite
     valid_config.uif_path = "%suif_test_%d.npy" % (valid_config.valid_uif_dir, cv)
     valid_config.iur_path = "%siur_test_%d.npy" % (valid_config.valid_iur_dir, cv)
     valid_config.record_path = "%stest_%d.record" % (valid_config.valid_record_dir, cv)
@@ -88,12 +94,12 @@ def train(cv):
         else:
             tf.global_variables_initializer().run()
 
-        train_log_path = training_config.log_dir + ('cv%d ' % cv + time_str) + '/train/'
+        train_log_path = get_dir(cv, z_size, cur_time) + 'train/'
         if not os.path.exists(train_log_path):
             os.makedirs(train_log_path)
         train_writer = tf.summary.FileWriter(train_log_path)
 
-        valid_log_path = valid_config.log_dir + ('cv%d ' % cv + time_str) + '/valid/' 
+        valid_log_path = get_dir(cv, z_size, cur_time) + 'valid/' 
         if not os.path.exists(valid_log_path):
             os.makedirs(valid_log_path)
         valid_writer = tf.summary.FileWriter(valid_log_path)
@@ -135,7 +141,7 @@ def train(cv):
                 logger.debug('Step: %d Training batch loss: %f' % (_step, batch_train_loss))
                 batch_train_history = []
                 train_history.append([_step, batch_train_loss])
-                report_figure(valid_history, train_history, training_config.fig_path + ('/cv%d ' % cv) + time_str + '/')
+                report_figure(valid_history, train_history, get_dir(cv, z_size, cur_time))
                 logger.debug('Figure saved')
 
                 summary = tf.Summary(value=[
@@ -184,4 +190,5 @@ def train(cv):
         coord.join(threads)
     
 if __name__=='__main__':
-    train(FLAGS.cv)
+    for z_size in [5]:
+        train(FLAGS.cv, z_size)
