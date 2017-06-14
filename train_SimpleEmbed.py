@@ -59,18 +59,20 @@ def train(cv, z_size, embed_size):
     training_config = Config(FLAGS.config_name)
     training_config.is_training = True
     training_config.z_size = z_size # overwrite
-    training_config.uif_path = "%suif_train_%d.npy" % (training_config.train_uif_dir, cv)
-    training_config.iur_path = "%siur_train_%d.npy" % (training_config.train_iur_dir, cv)
-    training_config.record_path = "%strain_%d.record" % (training_config.train_record_dir, cv)
+    training_config.embed_size = embed_size
+    training_config.uif_path = "%suif_train_%d.npy" % (training_config.uifDir, cv)
+    training_config.iur_path = "%siur_train_%d.npy" % (training_config.iurDir, cv)
+    training_config.record_path = "%strain_%d.record" % (training_config.tfrecordDir, cv)
     train_md = SimpleEmbedModel(training_config)
     train_md.add_variables(reuse=False)
 
     valid_config = Config(FLAGS.config_name)
     valid_config.is_training = False
     valid_config.z_size = z_size # overwrite
-    valid_config.uif_path = "%suif_test_%d.npy" % (valid_config.valid_uif_dir, cv)
-    valid_config.iur_path = "%siur_test_%d.npy" % (valid_config.valid_iur_dir, cv)
-    valid_config.record_path = "%stest_%d.record" % (valid_config.valid_record_dir, cv)
+    valid_config.embed_size = embed_size
+    valid_config.uif_path = "%suif_test_%d.npy" % (valid_config.uifDir, cv)
+    valid_config.iur_path = "%siur_test_%d.npy" % (valid_config.iurDir, cv)
+    valid_config.record_path = "%stest_%d.record" % (valid_config.tfrecordDir, cv)
     valid_md = SimpleEmbedModel(valid_config)
     valid_md.add_variables(reuse=True)
 
