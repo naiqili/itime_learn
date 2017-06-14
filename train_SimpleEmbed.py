@@ -118,6 +118,7 @@ def train(cv, z_size, embed_size):
             loss_ts = train_md.sum_loss
             train_op = train_md.train_op
             train_loss, train_summary, _ = sess.run([loss_ts, train_md.loss_summary, train_op])
+            sess.run([train_md.reset1, train_md.reset2])
             train_history.append([_step, train_loss])
             train_writer.add_summary(train_summary, _step)
             train_writer.flush()
@@ -133,6 +134,7 @@ def train(cv, z_size, embed_size):
                 for i in xrange(valid_config.valid_data_size[cv]):
                     valid_loss, valid_pred = \
                         sess.run([valid_md.sum_loss, valid_md.pred])
+                    sess.run([valid_md.reset1, valid_md.reset2])
                     valid_losses.append(valid_loss)
                     logger.debug("Validation loss %f" % valid_loss)
 

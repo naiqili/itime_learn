@@ -80,15 +80,15 @@ class SimpleEmbedModel():
             tf.less(i, len_ts)
 
         all_losses = tf.TensorArray(tf.float32, size=0, dynamic_size=True, \
-                                    clear_after_read=False, infer_shape=True)
+                                    clear_after_read=True, infer_shape=True)
         selected_items_arr = tf.TensorArray(tf.int32, size=0, dynamic_size=True, \
                                                 clear_after_read=False, infer_shape=True)
         _, _,  selected_items_arr, _, all_losses = tf.while_loop(loop_cond, loop_body, \
                                                 [0, item_list_ts, selected_items_arr, score1, all_losses])
 
         self.all_losses = all_losses.stack() # vec of n
-        all_losses.close()
-        selected_items_arr.close()
+        self.reset1 = all_losses.close()
+        self.reset2 = selected_items_arr.close()
         #self.sum_loss = tf.reduce_sum(self.all_losses)
         self.sum_loss = tf.reduce_mean(self.all_losses)
         self.pred = selected_items_arr.stack()
