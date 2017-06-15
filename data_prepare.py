@@ -3,7 +3,12 @@ import numpy as np
 import os
 import tensorflow as tf
 
-conf = Config()
+test_flag = False
+
+if test_flag:
+    conf = Config('test')
+else:
+    conf = Config()
 
 # Build user-item-feature data
 def build_uif(test_train, n_fold):
@@ -23,12 +28,16 @@ def build_uif(test_train, n_fold):
                     #print recAlgo, user, item, score
                 else:
                     score = float(score)
+                if test_flag and (user >= conf.user_size or item >= conf.item_size):
+                    continue
                 uif[user, item, recInd] = score
     output_path = "%suif_%s_%d" % (conf.uifDir, test_train, n_fold)
     np.save(output_path, uif)
 
 train_data_size = {}
 valid_data_size = {}
+train_data_user_size = {}
+valid_data_user_size = {}
 # Build item-user-rating data
 def build_iur(test_train, n_fold):
     iur = np.zeros((conf.item_size,
@@ -42,6 +51,8 @@ def build_iur(test_train, n_fold):
             user = int(user)
             item = int(item)
             rating = float(rating)
+            if test_flag and (user >= conf.user_size or item >= conf.item_size):
+                continue
             iur[item, user] = rating
     np.save(output_path, iur)
     
@@ -88,15 +99,19 @@ def build_tfrecord(test_train, n_fold):
                  (conf.tfrecordDir, test_train, n_fold)
     writer = tf.python_io.TFRecordWriter(output_path)
     data = {}
+    cnt = 0
     with open(input_path) as f_in:
         for line in f_in:
             user, item, _ = line.strip().split()
             user = int(user)
             item = int(item)
+            if test_flag and (user >= conf.user_size or item >= conf.item_size):
+                continue
             if not user in data:
                 data[user] = [item]
             else:
                 data[user].append(item)
+            cnt += 1
     for (user, item_list) in data.items():
         example = tf.train.Example(
             features = tf.train.Features(
@@ -111,9 +126,11 @@ def build_tfrecord(test_train, n_fold):
         writer.write(serialized)
     writer.close()
     if test_train == 'test':
-        valid_data_size[n_fold] = len(data)
+        valid_data_user_size[n_fold] = len(data)
+        valid_data_size[n_fold] = cnt
     else:
-        train_data_size[n_fold] = len(data)
+        train_data_user_size[n_fold] = len(data)
+        train_data_size[n_fold] = cnt
 
 for cv in range(conf.n_folds):
     print "building training tfrecord for %d-th fold..." % cv
@@ -133,6 +150,16 @@ with open(train_ds_path, 'w') as f:
 valid_ds_path = '%svalid_size.txt' % conf.datasizeDir
 with open(valid_ds_path, 'w') as f:
     for (cv, n) in valid_data_size.items():
+        f.write("%d %d\n" % (cv, n))
+
+train_user_ds_path = '%strain_user_size.txt' % conf.datasizeDir
+with open(train_user_ds_path, 'w') as f:
+    for (cv, n) in train_data_user_size.items():
+        f.write("%d %d\n" % (cv, n))
+
+valid_user_ds_path = '%svalid_user_size.txt' % conf.datasizeDir
+with open(valid_user_ds_path, 'w') as f:
+    for (cv, n) in valid_data_user_size.items():
         f.write("%d %d\n" % (cv, n))
         
 print "finish"

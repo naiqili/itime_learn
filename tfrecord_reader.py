@@ -27,6 +27,16 @@ def get_data(filename):
     _item_list = tf.to_int32(tf.sparse_tensor_to_dense(features['item_list']))
     return tf.train.limit_epochs([_l, _user, _item_list])
 
+def get_one_data(sess, l_ts, user_ts, item_list_ts):
+    while True:
+        _l, _user, _item_list = sess.run([l_ts, user_ts, item_list_ts])
+        for k in range(_l):
+            user = _user
+            selected_items = _item_list[:k]
+            all_items = _item_list
+            groundtruth = _item_list[k]
+            yield (user, selected_items, all_items, groundtruth)
+
 if __name__=='__main__':
     conf = Config('test')
     l, user, item_list = get_data('%stest_0.record' % conf.tfrecordDir)
@@ -34,13 +44,14 @@ if __name__=='__main__':
         tf.global_variables_initializer().run()
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
-        for _step in range(4000):
-            #print _step
-            _l, _user, _item_list = sess.run([l, user, item_list])
-            print "user:", _user
-            print "item list:", _item_list
-            print "len:", _l
-            print
+        one_data = get_one_data(sess, l, user, item_list)
+        for _step in range(50):
+            print _step
+            (u, s, a, g) = one_data.next()
+            print u
+            print s
+            print a
+            print g
 
         coord.request_stop()
         coord.join(threads)

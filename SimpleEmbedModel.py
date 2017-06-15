@@ -34,64 +34,47 @@ class SimpleEmbedModel():
             self.embed = tf.get_variable('embed',
                                          [conf.user_size, conf.embed_size])
 
-    def build_model(self, len_ts, user_ts, item_list_ts):
-        uif_u = self.uif[user_ts]
+        self.ph_selected_items = tf.placeholder(tf.int32, shape=(None,))
+        self.ph_all_items = tf.placeholder(tf.int32, shape=(None,))
+        self.ph_groundtruth = tf.placeholder(tf.int32, shape=[])
+        self.ph_user = tf.placeholder(tf.int32, shape=[])
+
+    def build_model(self):
+        uif_u = self.uif[self.ph_user]
         score1 = tf.matmul(uif_u, self.v1)
 
-        def loop_body(i, item_list, selected_items_arr, score1, all_losses):
-            def fn_i0(): # (choices, score_sum) when i = 0
-                return (item_list, tf.squeeze(score1))
-            def fn_not_i0():  # (choices, score_sum) when i != 0
-                if self.conf.is_training:
-                    selected_items = tf.slice(item_list, [0], [i])
-                else:
-                    selected_items = selected_items_arr.stack() # vec of len(selected)
-                    selected_items = tf.reshape(selected_items, [i])
-                iur = self.iur
-                iur_embed = tf.matmul(iur, self.embed)
-                se = tf.nn.embedding_lookup(iur, selected_items)
-                se_embed = tf.matmul(se, self.embed)
-                se_embed = tf.transpose(se_embed)                
-                # see test/einsum_test.py
-                iur_w = tf.einsum('nu,zud->znd', iur_embed, self.W_z)
-                iur_w_se = tf.einsum('znu,uk->znk', iur_w, se_embed)
-                mp_iur_w_se = tf.reduce_max(iur_w_se, axis=2) # z x n
-                mp_iur_w_se = tf.transpose(mp_iur_w_se) # n x z
-                score2 = tf.matmul(mp_iur_w_se, self.v2) # n x 1
-                score_sum = tf.squeeze(score1 + score2) # vec of n
-                choices = tf.reshape(tf.sparse_tensor_to_dense(tf.sets.set_difference([item_list], [selected_items])), [-1]) # vec of remaining choices
-                return (choices, score_sum)
+        def fn_i0(): # (choices, score_sum) when i = 0
+            return (self.ph_all_items, tf.squeeze(score1))
+        def fn_not_i0():  # (choices, score_sum) when i != 0
+            selected_items = self.ph_selected_items
+            iur = self.iur
+            iur_embed = tf.matmul(iur, self.embed)
+            se = tf.nn.embedding_lookup(iur, selected_items)
+            se_embed = tf.matmul(se, self.embed)
+            se_embed = tf.transpose(se_embed)                
+            # see test/einsum_test.py
+            iur_w = tf.einsum('nu,zud->znd', iur_embed, self.W_z)
+            iur_w_se = tf.einsum('znu,uk->znk', iur_w, se_embed)
+            mp_iur_w_se = tf.reduce_max(iur_w_se, axis=2) # z x n
+            mp_iur_w_se = tf.transpose(mp_iur_w_se) # n x z
+            score2 = tf.matmul(mp_iur_w_se, self.v2) # n x 1
+            score_sum = tf.squeeze(score1 + score2) # vec of n
+            choices = tf.reshape(tf.sparse_tensor_to_dense(tf.sets.set_difference([self.ph_all_items], [selected_items])), [-1]) # vec of remaining choices
+            return (choices, score_sum)
 
-            choices, score_sum = tf.cond(tf.equal(i, 0),
-                                         lambda: fn_i0(),
-                                         lambda: fn_not_i0())
+        i = tf.shape(self.ph_selected_items)[0]
+        choices, score_sum = tf.cond(tf.equal(i, 0),
+                                     lambda: fn_i0(),
+                                     lambda: fn_not_i0())
             
-            eff_score = tf.gather(score_sum, choices, validate_indices=False) # vec of choices
-            _argmax = tf.argmax(eff_score, axis=0)
-            _pred = tf.gather(choices, _argmax, validate_indices=False)
-            _loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-                        logits=score_sum, labels=item_list[i])
-            all_losses = all_losses.write(i, _loss) # vec of n
-            selected_items_arr = selected_items_arr.write(i, _pred)
-            i = tf.add(i, 1)
-            return i, item_list, selected_items_arr, score1, all_losses
+        eff_score = tf.gather(score_sum, choices, validate_indices=False) # vec of choices
+        _argmax = tf.argmax(eff_score, axis=0)
+        _pred = tf.gather(choices, _argmax, validate_indices=False)
+        _loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            logits=score_sum, labels=self.ph_groundtruth)
 
-        loop_cond = lambda i, item_list, selected, score1, all_scores: \
-            tf.less(i, len_ts)
-
-        all_losses = tf.TensorArray(tf.float32, size=0, dynamic_size=True, \
-                                    clear_after_read=True, infer_shape=True)
-        selected_items_arr = tf.TensorArray(tf.int32, size=0, dynamic_size=True, \
-                                                clear_after_read=False, infer_shape=True)
-        _, _,  selected_items_arr, _, all_losses = tf.while_loop(loop_cond, loop_body, \
-                                                [0, item_list_ts, selected_items_arr, score1, all_losses])
-
-        self.all_losses = all_losses.stack() # vec of n
-        self.reset1 = all_losses.close()
-        self.reset2 = selected_items_arr.close()
-        #self.sum_loss = tf.reduce_sum(self.all_losses)
-        self.sum_loss = tf.reduce_mean(self.all_losses)
-        self.pred = selected_items_arr.stack()
-        self.loss_summary = tf.summary.scalar('Sum_Loss', self.sum_loss)
+        self.loss = _loss
+        self.pred = _pred
+        self.loss_summary = tf.summary.scalar('Loss', self.loss)
         if self.conf.is_training:
-            self.train_op = tf.train.AdamOptimizer(self.conf.lr).minimize(self.sum_loss)
+            self.train_op = tf.train.AdamOptimizer(self.conf.lr).minimize(self.loss)

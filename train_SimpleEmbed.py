@@ -7,7 +7,7 @@ import cPickle
 import os, shutil, random, datetime
 
 from config import Config
-from tfrecord_reader import get_data
+from tfrecord_reader import get_data, get_one_data
 from SimpleEmbedModel import SimpleEmbedModel
 
 matplotlib.use('Agg')
@@ -70,19 +70,19 @@ def train(cv, z_size, embed_size):
     valid_config.is_training = False
     valid_config.z_size = z_size # overwrite
     valid_config.embed_size = embed_size
-    valid_config.uif_path = "%suif_test_%d.npy" % (valid_config.uifDir, cv)
-    valid_config.iur_path = "%siur_test_%d.npy" % (valid_config.iurDir, cv)
+    valid_config.uif_path = "%suif_train_%d.npy" % (valid_config.uifDir, cv)
+    valid_config.iur_path = "%siur_train_%d.npy" % (valid_config.iurDir, cv)
     valid_config.record_path = "%stest_%d.record" % (valid_config.tfrecordDir, cv)
     valid_md = SimpleEmbedModel(valid_config)
     valid_md.add_variables(reuse=True)
 
     # tts means Training input TenSor
     len_tts, user_tts, item_list_tts = get_data(filename=training_config.record_path)
-    train_md.build_model(len_tts, user_tts, item_list_tts)
+    train_md.build_model()
 
     # vts means Training input TenSor
     len_vts, user_vts, item_list_vts = get_data(filename=valid_config.record_path)
-    valid_md.build_model(len_vts, user_vts, item_list_vts)
+    valid_md.build_model()
     
     _patience = training_config.patience
     best_valid_loss = 10000000.0
@@ -111,14 +111,20 @@ def train(cv, z_size, embed_size):
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
 
+        train_one_data = get_one_data(sess, len_tts, user_tts, item_list_tts)
+        valid_one_data = get_one_data(sess, len_vts, user_vts, item_list_vts)
+        
         batch_train_history = []
         for _step in xrange(training_config.max_step):
             if _patience == 0:
                 break
-            loss_ts = train_md.sum_loss
-            train_op = train_md.train_op
-            train_loss, train_summary, _ = sess.run([loss_ts, train_md.loss_summary, train_op])
-            sess.run([train_md.reset1, train_md.reset2])
+            (_user, _selected_items, _all_items, _gt) = \
+                train_one_data.next()
+            feed_dict = {train_md.ph_user: _user, \
+                         train_md.ph_selected_items: _selected_items, \
+                         train_md.ph_all_items: _all_items, \
+                         train_md.ph_groundtruth: _gt}
+            train_loss, train_summary, _ = sess.run([train_md.loss, train_md.loss_summary, train_md.train_op], feed_dict=feed_dict)
             train_history.append([_step, train_loss])
             train_writer.add_summary(train_summary, _step)
             train_writer.flush()
@@ -132,11 +138,16 @@ def train(cv, z_size, embed_size):
                 valid_losses = []
 
                 for i in xrange(valid_config.valid_data_size[cv]):
+                    (_user, _selected_items, _all_items, _gt) = \
+                        train_one_data.next()
+                    feed_dict = {valid_md.ph_user: _user, \
+                                 valid_md.ph_selected_items: _selected_items, \
+                                 valid_md.ph_all_items: _all_items, \
+                                 valid_md.ph_groundtruth: _gt}
                     valid_loss, valid_pred = \
-                        sess.run([valid_md.sum_loss, valid_md.pred])
-                    sess.run([valid_md.reset1, valid_md.reset2])
+                        sess.run([valid_md.loss, valid_md.pred], feed_dict=feed_dict)
                     valid_losses.append(valid_loss)
-                    logger.debug("Validation loss %f" % valid_loss)
+                    #logger.debug("Validation loss %f" % valid_loss)
 
                 mean_loss = np.mean(valid_losses)
                 logger.debug('Validation: finish')
@@ -173,24 +184,30 @@ def train(cv, z_size, embed_size):
         
         # start making prediction
         results = {}
-        for i in xrange(valid_config.valid_data_size[cv]):
-            user_id, valid_pred = sess.run([user_vts, valid_md.pred])
-            results[user_id] = valid_pred
-            logger.debug('user_id: %d' % user_id)                
-            logger.debug('items: %s' % str(valid_pred))
+        for i in xrange(valid_config.valid_data_user_size[cv]):
+            _len, _user, _all_items = sess.run([len_vts, user_vts, item_list_vts])
+            _selected_items = []
+            results[_user] = []
+            for k in range(_len):
+                feed_dict = {valid_md.ph_user: _user, \
+                             valid_md.ph_selected_items: _selected_items, \
+                             valid_md.ph_all_items: _all_items}
+                valid_pred = \
+                        sess.run(valid_md.pred, feed_dict=feed_dict)
+                results[_user].append(valid_pred)
+                _selected_items.append(valid_pred)
+            logger.debug('user_id: %d' % _user)                
+            logger.debug('items: %s' % str(results[_user]))
 
         # Save to file
         logger.debug("start making predictions for %d-th fold" % cv)
-        pred_path = training_config.pred_path
+        pred_path = get_dir(cv, z_size, embed_size, cur_time) + 'pred/' 
         if not os.path.exists(pred_path):
             os.makedirs(pred_path)
         with open(pred_path + ("cv%d.pred" % cv), 'w') as f:
             for (user_id, item_list) in results.items():
-                if isinstance(item_list, np.ndarray):
-                    for i in range(len(item_list)):
-                        f.write("%d\t%d\t1.0\n" % (user_id, item_list[i]))
-                else: # only one item
-                    f.write("%d\t%d\t1.0\n" % (user_id, item_list))
+                for i in range(len(item_list)):
+                    f.write("%d\t%d\t1.0\n" % (user_id, item_list[i]))
         logger.debug("Predictions saved.")
         
         coord.request_stop()

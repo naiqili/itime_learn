@@ -19,6 +19,8 @@ class Config:
 
         self.train_data_size = {}
         self.valid_data_size = {}
+        self.train_data_user_size = {}
+        self.valid_data_user_size = {}
         if os.path.exists(self.datasizeDir):
             with open("%strain_size.txt" % self.datasizeDir) as f:
                 for line in f:
@@ -28,8 +30,16 @@ class Config:
                 for line in f:
                     cv, n = line.strip().split()
                     self.valid_data_size[int(cv)] = int(n)
+            with open("%strain_user_size.txt" % self.datasizeDir) as f:
+                for line in f:
+                    cv, n = line.strip().split()
+                    self.train_data_user_size[int(cv)] = int(n)
+            with open("%svalid_user_size.txt" % self.datasizeDir) as f:
+                for line in f:
+                    cv, n = line.strip().split()
+                    self.valid_data_user_size[int(cv)] = int(n)
 
-        for _dir in [self.bestmodel_dir, self.log_dir, self.fig_path, self.pred_path]:
+        for _dir in [self.bestmodel_dir, self.log_dir, self.fig_path]:
             if not os.path.exists(_dir):
                 os.makedirs(_dir)
 
@@ -72,7 +82,6 @@ class Config:
         self.bestmodel_dir = "./model/basic/main/"
         self.log_dir = "./log/basic/main/"
         self.fig_path = "./log/basic/main/"
-        self.pred_path = "./prediction/basic/main/"
 
     def get_test_config(self):
         self.user_size = 500
@@ -113,7 +122,6 @@ class Config:
         self.bestmodel_dir = "./model/basic/test/"
         self.log_dir = "./log/basic/test/"
         self.fig_path = "./log/basic/test/"
-        self.pred_path = "./prediction/basic/test/"
 
     def get_simple_embed_test_config(self):
         self.user_size = 500
@@ -139,7 +147,6 @@ class Config:
         self.bestmodel_dir = "./model/simple_embed/test/"
         self.log_dir = "./log/simple_embed/test/"
         self.fig_path = "./log/simple_embed/test/"
-        self.pred_path = "./prediction/simple_embed/test/"
 
     def get_simple_embed_main_config(self):
         self.user_size = 6040
@@ -157,12 +164,11 @@ class Config:
         self.lr = 0.001 # learning rate
         self.z_size = 5
 
-        self.max_step = 10000000
+        self.max_step = 100000000
         self.patience = 5
-        self.valid_freq = 2000
-        self.train_freq = 1
+        self.valid_freq = 20000
+        self.train_freq = 1000
 
         self.bestmodel_dir = "./model/simple_embed/main/"
         self.log_dir = "./log/simple_embed/main/"
         self.fig_path = "./log/simple_embed/main/"
-        self.pred_path = "./prediction/simple_embed/main/"
