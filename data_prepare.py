@@ -8,7 +8,18 @@ test_flag = False
 if test_flag:
     conf = Config('test')
 else:
-    conf = Config()
+    conf = Config('simple_embed_main_with_feat')
+
+# Translate feats to index
+feat_path = "%sfeats.csv" % conf.seed2048Path
+feat2ind = {}
+with open(feat_path) as f:
+    for line in f:
+        feat = line.strip().split()[1]
+        if not feat in feat2ind:
+            feat2ind[feat] = len(feat2ind)
+feat_size = len(feat2ind)
+print "feat size: %d" % feat_size
 
 # Build user-item-feature data
 def build_uif(test_train, n_fold):
@@ -39,9 +50,10 @@ valid_data_size = {}
 train_data_user_size = {}
 valid_data_user_size = {}
 # Build item-user-rating data
+# Append item feats
 def build_iur(test_train, n_fold):
     iur = np.zeros((conf.item_size,
-                    conf.user_size), dtype=np.float16)
+                    conf.user_size + feat_size), dtype=np.float16)
     input_path = "%s%s_%d.csv" % \
                  (conf.seed2048Path, test_train, n_fold)
     output_path = "%siur_%s_%d" % (conf.iurDir, test_train, n_fold)
@@ -54,6 +66,14 @@ def build_iur(test_train, n_fold):
             if test_flag and (user >= conf.user_size or item >= conf.item_size):
                 continue
             iur[item, user] = rating
+    with open(feat_path) as f_feat:
+        for line in f_feat:
+            item, feat = line.strip().split()
+            item = int(item)
+            if test_flag and item >= conf.item_size:
+                continue
+            feat_ind = feat2ind[feat]
+            iur[item, conf.user_size+feat_ind] = 1
     np.save(output_path, iur)
     
 
@@ -141,6 +161,10 @@ for cv in range(conf.n_folds):
 if not os.path.exists(conf.datasizeDir):
     os.makedirs(conf.datasizeDir)
 print 'Saving data size info...'
+
+feat_size_path = '%sfeat_size.txt' % conf.datasizeDir
+with open(feat_size_path, 'w') as f:
+    f.write(str(feat_size))
 
 train_ds_path = '%strain_size.txt' % conf.datasizeDir
 with open(train_ds_path, 'w') as f:

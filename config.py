@@ -16,12 +16,17 @@ class Config:
             self.get_simple_embed_test_config()
         elif config_name == "simple_embed_main":
             self.get_simple_embed_main_config()
+        elif config_name == "simple_embed_main_with_feat":
+            self.get_simple_embed_main_with_feat_config()
 
         self.train_data_size = {}
         self.valid_data_size = {}
         self.train_data_user_size = {}
         self.valid_data_user_size = {}
-        if os.path.exists(self.datasizeDir):
+        try:
+            with open("%sfeat_size.txt" % self.datasizeDir) as f:
+                n = f.readline().strip()
+                self.feat_size = int(n)
             with open("%strain_size.txt" % self.datasizeDir) as f:
                 for line in f:
                     cv, n = line.strip().split()
@@ -38,6 +43,8 @@ class Config:
                 for line in f:
                     cv, n = line.strip().split()
                     self.valid_data_user_size[int(cv)] = int(n)
+        except Exception, e:
+            print e
 
         for _dir in [self.bestmodel_dir, self.log_dir, self.fig_path]:
             if not os.path.exists(_dir):
@@ -172,3 +179,28 @@ class Config:
         self.bestmodel_dir = "./model/simple_embed/main/"
         self.log_dir = "./log/simple_embed/main/"
         self.fig_path = "./log/simple_embed/main/"
+
+    def get_simple_embed_main_with_feat_config(self):
+        self.user_size = 6040
+        self.item_size = 3706
+        # self.n_folds = 5
+        self.n_folds = 5 # use 1 fold for testing & debugging
+
+        self.recAlgos = ["pop", "ub", "ib", "hkv", "pzt", "plsa", "lda", "fm-bpr", "fm-rmse"]
+
+        self.uifDir = "./data/main_feat/uif/"
+        self.iurDir = "./data/main_feat/iur/"
+        self.tfrecordDir = "./data/main_feat/tfrecord/"
+        self.datasizeDir = "./data/main_feat/datasize/"
+
+        self.lr = 0.001 # learning rate
+        self.z_size = 5
+
+        self.max_step = 100000000
+        self.patience = 5
+        self.valid_freq = 20000
+        self.train_freq = 1000
+
+        self.bestmodel_dir = "./model/simple_embed/main_feat/"
+        self.log_dir = "./log/simple_embed/main_feat/"
+        self.fig_path = "./log/simple_embed/main_feat/"

@@ -18,7 +18,7 @@ class SimpleEmbedModel():
                                        trainable=False)
             self.iur = tf.get_variable('iur',
                                        [conf.item_size,
-                                        conf.user_size],
+                                        conf.user_size+conf.feat_size],
                                        initializer=tf.constant_initializer(self.iur_mat),
                                        trainable=False)
         with tf.variable_scope('Weights', reuse=reuse):
@@ -32,7 +32,7 @@ class SimpleEmbedModel():
                                         conf.embed_size])
         with tf.variable_scope('Embeddings', reuse=reuse):
             self.embed = tf.get_variable('embed',
-                                         [conf.user_size, conf.embed_size])
+                                         [conf.user_size+conf.feat_size, conf.embed_size])
 
         self.ph_selected_items = tf.placeholder(tf.int32, shape=(None,))
         self.ph_all_items = tf.placeholder(tf.int32, shape=(None,))
