@@ -41,6 +41,7 @@ class SimpleEmbedModel():
 
     def build_model(self):
         uif_u = self.uif[self.ph_user]
+        uif_u = tf.contrib.layers.dropout(uif_u, self.conf.keep_prob, is_training=self.conf.is_training) # Add dropout layer
         score1 = tf.matmul(uif_u, self.v1)
 
         def fn_i0(): # (choices, score_sum) when i = 0
@@ -48,6 +49,7 @@ class SimpleEmbedModel():
         def fn_not_i0():  # (choices, score_sum) when i != 0
             selected_items = self.ph_selected_items
             iur = self.iur
+            iur = tf.contrib.layers.dropout(iur, self.conf.keep_prob, is_training=self.conf.is_training) # Add dropout layer
             iur_embed = tf.matmul(iur, self.embed)
             se = tf.nn.embedding_lookup(iur, selected_items)
             se_embed = tf.matmul(se, self.embed)

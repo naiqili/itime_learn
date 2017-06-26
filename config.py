@@ -3,10 +3,12 @@ import os
 class Config:
     def __init__(self, config_name="default"):
 
-        self.recPath = "../RankSys/RankSys-examples/recommendations/learning/"
+        self.recPath = "../RankSys/RankSys-examples/recommendations/100k/learning/"
         #self.seed2048Path = "../rival/rival-examples/data/ml-1m/seed2048/"
-        self.seed2048Path = "../itimerec/data/"
-        self.groundTruthPath = "../RankSys/RankSys-examples/recommendations/"
+        #self.seed2048Path = "../itimerec/data/"
+        self.seed2048Path = "../itime_rec/data/ml-100k/"
+        #self.groundTruthPath = "../RankSys/RankSys-examples/recommendations/"
+        self.groundTruthPath = "../RankSys/RankSys-examples/recommendations/100k/ground_truth/"
         
         if config_name == "default":
             self.get_default_config()
@@ -18,6 +20,12 @@ class Config:
             self.get_simple_embed_main_config()
         elif config_name == "simple_embed_main_with_feat":
             self.get_simple_embed_main_with_feat_config()
+        elif config_name == "100k_data_prepare":
+            self._100k_data_prepare_config()
+        elif config_name == "100k_simple_embed_main_with_feat":
+            self.get_100k_simple_embed_main_with_feat_config()
+        elif config_name == "100k_embed_main_with_feat":
+            self.get_100k_embed_main_with_feat_config()
 
         self.train_data_size = {}
         self.valid_data_size = {}
@@ -43,12 +51,13 @@ class Config:
                 for line in f:
                     cv, n = line.strip().split()
                     self.valid_data_user_size[int(cv)] = int(n)
+
+            for _dir in [self.bestmodel_dir, self.log_dir, self.fig_path, self.ndcgConstantPath]:
+                if not os.path.exists(_dir):
+                    os.makedirs(_dir)
+
         except Exception, e:
             print e
-
-        for _dir in [self.bestmodel_dir, self.log_dir, self.fig_path]:
-            if not os.path.exists(_dir):
-                os.makedirs(_dir)
 
     def get_default_config(self):
         self.user_size = 6040
@@ -204,3 +213,72 @@ class Config:
         self.bestmodel_dir = "./model/simple_embed/main_feat/"
         self.log_dir = "./log/simple_embed/main_feat/"
         self.fig_path = "./log/simple_embed/main_feat/"
+
+    def _100k_data_prepare_config(self):
+        self.user_size = 777
+        self.item_size = 516
+        # self.n_folds = 5
+        self.n_folds = 5 # use 1 fold for testing & debugging
+
+        self.recAlgos = ["pop", "ub", "ib", "hkv", "pzt", "plsa", "lda", "fm-bpr", "fm-rmse"]
+
+        self.uifDir = "./data/ml-100k/main_feat/uif/"
+        #self.iurDir = "./data/ml-100k/main_feat/iur/"
+        self.featMatDir = "./data/ml-100k/main_feat/featmat/"
+        self.tfrecordDir = "./data/ml-100k/main_feat/tfrecord/"
+        self.datasizeDir = "./data/ml-100k/main_feat/datasize/"
+
+    def get_100k_simple_embed_main_with_feat_config(self):
+        self.user_size = 777
+        self.item_size = 516
+        # self.n_folds = 5
+        self.n_folds = 5 # use 1 fold for testing & debugging
+
+        self.recAlgos = ["pop", "ub", "ib", "hkv", "pzt", "plsa", "lda", "fm-bpr", "fm-rmse"]
+
+        self.uifDir = "./data/ml-100k/main_feat/uif/"
+        self.iurDir = "./data/ml-100k/main_feat/iur/"
+        self.tfrecordDir = "./data/ml-100k/main_feat/tfrecord/"
+        self.datasizeDir = "./data/ml-100k/main_feat/datasize/"
+
+        self.lr = 0.001 # learning rate
+        self.z_size = 5
+
+        self.max_step = 100000000
+        self.patience = 5
+        self.valid_freq = 20
+        self.train_freq = 5
+
+        self.bestmodel_dir = "./model/100k/simple_embed/main/"
+        self.log_dir = "./log/100k/simple_embed/main/"
+        self.fig_path = "./log/100k/simple_embed/main/"
+
+    def get_100k_embed_main_with_feat_config(self):
+        self.user_size = 777
+        self.item_size = 516
+        # self.n_folds = 5
+        self.n_folds = 5 # use 1 fold for testing & debugging
+
+        self.recAlgos = ["pop", "ub", "ib", "hkv", "pzt", "plsa", "lda", "fm-bpr", "fm-rmse"]
+
+        self.uifDir = "./data/ml-100k/main_feat/uif/"
+        self.tfrecordDir = "./data/ml-100k/main_feat/tfrecord/"
+        self.datasizeDir = "./data/ml-100k/main_feat/datasize/"
+        self.featMatDir = "./data/ml-100k/main_feat/featmat/"
+        self.embedPath = "../itime_rec/embed/joint_pos/best/"
+
+        self.lr = 0.001 # learning rate
+        self.z_size = 5
+
+        self.max_step = 100000000
+        self.patience = 5
+        self.valid_freq = 20
+        self.train_freq = 5
+
+        self.bestmodel_dir = "./model/100k/embed/main/"
+        self.log_dir = "./log/100k/embed/main/"
+        self.fig_path = "./log/100k/embed/main/"
+        self.ndcgConstantPath = "./data/ml-100k/ndcg_const/"
+
+        self.drop_matrix = True
+        self.drop_embed = True

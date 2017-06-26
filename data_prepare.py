@@ -8,7 +8,8 @@ test_flag = False
 if test_flag:
     conf = Config('test')
 else:
-    conf = Config('simple_embed_main_with_feat')
+    #conf = Config('simple_embed_main_with_feat')
+    conf =  Config('100k_data_prepare')
 
 # Translate feats to index
 feat_path = "%sfeats.csv" % conf.seed2048Path
@@ -41,6 +42,7 @@ def build_uif(test_train, n_fold):
                     score = float(score)
                 if test_flag and (user >= conf.user_size or item >= conf.item_size):
                     continue
+                #print line, recAlgo
                 uif[user, item, recInd] = score
     output_path = "%suif_%s_%d" % (conf.uifDir, test_train, n_fold)
     np.save(output_path, uif)
@@ -50,11 +52,12 @@ valid_data_size = {}
 train_data_user_size = {}
 valid_data_user_size = {}
 # Build item-user-rating data
-# Append item feats
+# iur no long in use
+'''
 def build_iur(test_train, n_fold):
     iur = np.zeros((conf.item_size,
                     conf.user_size + feat_size), dtype=np.float16)
-    input_path = "%s%s_%d.csv" % \
+    input_path = "%s%s%d.csv" % \
                  (conf.seed2048Path, test_train, n_fold)
     output_path = "%siur_%s_%d" % (conf.iurDir, test_train, n_fold)
     with open(input_path) as f_in:
@@ -68,30 +71,40 @@ def build_iur(test_train, n_fold):
             iur[item, user] = rating
     with open(feat_path) as f_feat:
         for line in f_feat:
-            item, feat = line.strip().split()
+            item, feat, _ = line.strip().split()
             item = int(item)
             if test_flag and item >= conf.item_size:
                 continue
             feat_ind = feat2ind[feat]
             iur[item, conf.user_size+feat_ind] = 1
     np.save(output_path, iur)
-    
+'''
+
+def build_feat_mat():
+    iur = np.zeros((conf.item_size,
+                    feat_size), dtype=np.float16)
+    output_path = "%sfeat_mat" % (conf.featMatDir)
+    with open(feat_path) as f_feat:
+        for line in f_feat:
+            item, feat, _ = line.strip().split()
+            item = int(item)
+            if test_flag and item >= conf.item_size:
+                continue
+            feat_ind = feat2ind[feat]
+            iur[item, feat_ind] = 1
+    np.save(output_path, iur)
 
 if not os.path.exists(conf.uifDir):
     os.makedirs(conf.uifDir)
-if not os.path.exists(conf.iurDir):
-    os.makedirs(conf.iurDir)
+if not os.path.exists(conf.featMatDir):
+    os.makedirs(conf.featMatDir)
+
+print "building feature matrix..." 
+build_feat_mat()
     
 for cv in range(conf.n_folds):
     print "building training uif data for %d-th fold..." % cv
     build_uif("train", cv)
-    print "building test uif data for %d-th fold..." % cv
-    build_uif("test", cv)
-
-    print "building training iur data for %d-th fold..." % cv
-    build_iur("train", cv)
-    print "building test iur data for %d-th fold..." % cv
-    build_iur("test", cv)
 
 if not os.path.exists(conf.datasizeDir):
     os.makedirs(conf.datasizeDir)
