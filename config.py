@@ -271,9 +271,9 @@ class Config:
         self.z_size = 5
 
         self.max_step = 100000000
-        self.patience = 5
-        self.valid_freq = 20
-        self.train_freq = 5
+        self.patience = 15
+        self.valid_freq = 2000
+        self.train_freq = 500
 
         self.bestmodel_dir = "./model/100k/embed/main/"
         self.log_dir = "./log/100k/embed/main/"
